@@ -1,22 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import roaddata from './sorted_data.json';
+import roaddata from './contour_data.json';
+
+// Import your custom marker image
+import customMarkerImage from './pin_blue_50.png';
 
 const MapComponent = () => {
     const [leafletMap, setLeafletMap] = useState(null);
     const [buildingData, setBuildingData] = useState([]);
 
     useEffect(() => {
-        // Create Leaflet map
-        const map = L.map('map').setView([51.5072, 0.1276], 14);
+        const map = L.map('map').setView([51.5072, 0.01276], 12);
 
-        // Add tile layer to the map
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
-        // Set the leafletMap state variable
         setLeafletMap(map);
     }, []);
 
@@ -34,23 +34,15 @@ const MapComponent = () => {
             const calculateArea = (south, west, north, east) => {
                 const latDifference = north - south;
                 const lonDifference = east - west;
-                const area = latDifference * lonDifference * 111000 * 111000; // Convert to square meters
+                const area = latDifference * lonDifference * 111000 * 111000;
                 return area;
             };
 
             const calculateCenterAndRadius = (south, west, north, east) => {
-                // Calculate the center latitude and longitude
                 const centerLatitude = (south + north) / 2;
                 const centerLongitude = (west + east) / 2;
-
-                // Calculate the radius (distance from center to corner)
-                const earthRadius = 6371000; // Earth's radius in meters
-                const dLat = Math.abs(north - south);
-                const dLon = Math.abs(east - west);
-                const dLatMeters = dLat * earthRadius * Math.PI / 180;
-                const dLonMeters = dLon * earthRadius * Math.PI / 180;
-                const radius = 3000; // This seems like a fixed value in your code
-                return { latitude: centerLatitude, longitude: centerLongitude, radius: radius };
+                const radius = 3000;
+                return { latitude: centerLatitude, longitude: centerLongitude, radius };
             };
 
             const extractBuildingInfo = (data) => {
@@ -59,7 +51,6 @@ const MapComponent = () => {
                 data.elements.forEach((element) => {
                     if (element.tags && element.tags.highway && element.nodes) {
                         const nodeIds = element.nodes;
-                        // Retrieve latitude and longitude coordinates of each node
                         const nodes = nodeIds.map((nodeId) => {
                             const node = data.elements.find((el) => el.id === nodeId);
                             if (node) {
@@ -69,7 +60,6 @@ const MapComponent = () => {
                         }).filter((node) => node !== null);
 
                         if (nodes.length > 0) {
-                            // Construct a Polygon from the nodes
                             const buildingPolygon = nodes.map(({ lat, lon }) => [lat, lon]);
                             const buildingType = element.tags.building || 'unknown';
                             buildingData.push({ type: buildingType, polygon: buildingPolygon });
@@ -83,7 +73,6 @@ const MapComponent = () => {
             const calc_building = () => {
                 const { south, west, north, east } = updateBounds();
                 const area = calculateArea(south, west, north, east);
-                console.log("area", area);
 
                 if (area < 1104271200000000) {
                     const overpassQuery = (south, west, north, east) => {
@@ -104,7 +93,6 @@ const MapComponent = () => {
 
                     const query = overpassQuery(south, west, north, east);
 
-                    // Now you can use this query in your fetch request
                     fetch('http://overpass-api.de/api/interpreter', {
                         method: 'POST',
                         body: query
@@ -112,13 +100,11 @@ const MapComponent = () => {
                         .then(response => response.json())
                         .then(data => {
                             setBuildingData(extractBuildingInfo(data));
-                            console.log("road", data)
                         })
                         .catch(error => console.error('Error fetching building data:', error));
 
                 } else {
                     setBuildingData([]);
-                    // Remove existing polygons from the map
                     leafletMap.eachLayer(layer => {
                         if (layer instanceof L.Polygon) {
                             leafletMap.removeLayer(layer);
@@ -129,13 +115,11 @@ const MapComponent = () => {
 
             calc_building();
 
-            // Listen for map events
             leafletMap.on('zoomend', calc_building);
             leafletMap.on('moveend', calc_building);
         }
     }, [leafletMap]);
 
-    // Function to calculate the distance between two coordinates in kilometers
     const haversineDistance = (coords1, coords2) => {
         const toRadians = degrees => degrees * Math.PI / 180;
 
@@ -159,33 +143,45 @@ const MapComponent = () => {
 
     useEffect(() => {
         if (leafletMap && buildingData.length > 0) {
-            console.log("data", buildingData);
             const road_coordinates = [];
-
+            console.log("roaddata", roaddata);
             roaddata.forEach(road_coord => {
                 let closestPoint = null;
                 let minDistance = Infinity;
-
+            
                 buildingData.forEach(element => {
                     element.polygon.forEach(polygondata => {
                         const distance = haversineDistance(road_coord, polygondata);
-                        if (distance < minDistance) {
+                        if (distance < minDistance && !road_coordinates.some(coord => coord.lat === polygondata.lat && coord.lng === polygondata.lng)) {
                             minDistance = distance;
                             closestPoint = polygondata;
+                            console.log("closest", closestPoint);
                         }
                     });
                 });
-                road_coordinates.push([road_coord, closestPoint]);
+            
+                if (closestPoint) {
+                    road_coordinates.push(closestPoint);
+                }
             });
 
-            console.log("road_coordinates", road_coordinates);
-
-            // Draw lines using road_coordinates
+            // Define the custom icon
+            const customIcon = L.icon({
+                iconUrl: customMarkerImage,
+                iconSize: [32, 32], // Adjust the size to your needs
+                iconAnchor: [16, 32], // Point of the icon which will correspond to marker's location
+                popupAnchor: [0, -32] // Point from which the popup should open relative to the iconAnchor
+            });
+            console.log(road_coordinates);
             road_coordinates.forEach(coordPair => {
-                console.log("coordPair", coordPair);
-                if (coordPair[1]) {
-                    L.polyline(coordPair, { color: 'blue' }).addTo(leafletMap);
-                }
+                console.log(coordPair);
+                // if (coordPair[1]) {
+                    // L.polyline(coordPair, { color: 'blue' }).addTo(leafletMap);
+
+                    // Add marker for each coordinate pair with custom icon
+                    // L.marker(coordPair[0], { icon: customIcon }).addTo(leafletMap);
+                    L.marker(coordPair, { icon: customIcon }).addTo(leafletMap);
+                // }
             });
         }
     }, [leafletMap, buildingData]);
