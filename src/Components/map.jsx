@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import roaddata from './contour_data.json';
+import reindeer from './reindeer.json';
+import father_christmas from './Father_Christmas.json'
 
 // Import your custom marker image
 import customMarkerImage from './pin_blue_50.png';
@@ -9,9 +10,12 @@ import customMarkerImage from './pin_blue_50.png';
 const MapComponent = () => {
     const [leafletMap, setLeafletMap] = useState(null);
     const [buildingData, setBuildingData] = useState([]);
+    const[mapshape, setMapShape] = useState('reindeer');
+    const markersRef = useRef([]);
+
 
     useEffect(() => {
-        const map = L.map('map').setView([51.5072, 0.01276], 12);
+        const map = L.map('map').setView([51.48046624769113,  -0.06145477294921875], 13);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -20,6 +24,15 @@ const MapComponent = () => {
         setLeafletMap(map);
     }, []);
 
+    
+    const handleShapeChrismtmas = () => {
+        console.log("father");
+        setMapShape('father_christmas');
+    };
+    const handleShapeReindeer = () => {
+        setMapShape('reindeer');
+    };
+    const [leftdown, setLeftDown] = useState([]);
     useEffect(() => {
         if (leafletMap) {
             const updateBounds = () => {
@@ -28,6 +41,8 @@ const MapComponent = () => {
                 const west = bounds.getWest();
                 const north = bounds.getNorth();
                 const east = bounds.getEast();
+                setLeftDown([south, west]);
+                console.log("south", south, west, north, east);
                 return { south, west, north, east };
             };
 
@@ -41,7 +56,7 @@ const MapComponent = () => {
             const calculateCenterAndRadius = (south, west, north, east) => {
                 const centerLatitude = (south + north) / 2;
                 const centerLongitude = (west + east) / 2;
-                const radius = 3000;
+                const radius = 1000;
                 return { latitude: centerLatitude, longitude: centerLongitude, radius };
             };
 
@@ -120,73 +135,47 @@ const MapComponent = () => {
         }
     }, [leafletMap]);
 
-    const haversineDistance = (coords1, coords2) => {
-        const toRadians = degrees => degrees * Math.PI / 180;
-
-        const lat1 = coords1[0];
-        const lon1 = coords1[1];
-        const lat2 = coords2[0];
-        const lon2 = coords2[1];
-
-        const R = 6371; // Radius of the Earth in kilometers
-        const dLat = toRadians(lat2 - lat1);
-        const dLon = toRadians(lon2 - lon1);
-        const a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        const distance = R * c;
-
-        return distance;
-    };
-
     useEffect(() => {
         if (leafletMap && buildingData.length > 0) {
+            markersRef.current.forEach(marker => {
+                leafletMap.removeLayer(marker);
+            });
+            markersRef.current = [];
+
             const road_coordinates = [];
-            console.log("roaddata", roaddata);
+            const roaddata = mapshape ==='reindeer' ? reindeer : father_christmas;
+            console.log(leftdown); 
             roaddata.forEach(road_coord => {
-                let closestPoint = null;
-                let minDistance = Infinity;
+
+                road_coordinates.push([leftdown[0] + road_coord[0]/9000, leftdown[1] +  road_coord[1]/2000]);
             
-                buildingData.forEach(element => {
-                    element.polygon.forEach(polygondata => {
-                        const distance = haversineDistance(road_coord, polygondata);
-                        if (distance < minDistance && !road_coordinates.some(coord => coord.lat === polygondata.lat && coord.lng === polygondata.lng)) {
-                            minDistance = distance;
-                            closestPoint = polygondata;
-                            console.log("closest", closestPoint);
-                        }
-                    });
-                });
-            
-                if (closestPoint) {
-                    road_coordinates.push(closestPoint);
-                }
+                // buildingData.forEach(element => {
+                //     element.polygon.forEach(polygondata => {
+                //     });
+                // });
             });
 
             // Define the custom icon
             const customIcon = L.icon({
                 iconUrl: customMarkerImage,
-                iconSize: [32, 32], // Adjust the size to your needs
-                iconAnchor: [16, 32], // Point of the icon which will correspond to marker's location
-                popupAnchor: [0, -32] // Point from which the popup should open relative to the iconAnchor
+                iconSize: [16, 16], // Adjust the size to your needs
+                iconAnchor: [16, 16], // Point of the icon which will correspond to marker's location
+                popupAnchor: [0, -16] // Point from which the popup should open relative to the iconAnchor
             });
-            console.log(road_coordinates);
             road_coordinates.forEach(coordPair => {
-                console.log(coordPair);
-                // if (coordPair[1]) {
-                    // L.polyline(coordPair, { color: 'blue' }).addTo(leafletMap);
-
-                    // Add marker for each coordinate pair with custom icon
-                    // L.marker(coordPair[0], { icon: customIcon }).addTo(leafletMap);
-                    L.marker(coordPair, { icon: customIcon }).addTo(leafletMap);
-                // }
+                const marker = L.marker(coordPair, { icon: customIcon }).addTo(leafletMap);
+                markersRef.current.push(marker);
             });
         }
-    }, [leafletMap, buildingData]);
+    }, [leafletMap, buildingData, mapshape]);
 
-    return <div id="map" style={{ height: '700px', width: '100%' }}></div>;
+    return (
+        <>
+            <div id="map" style={{ height: '700px', width: '100%' }}></div>
+            <button className='btn btn-primary' onClick={handleShapeChrismtmas}>Father_Christmas</button>
+            <button className='btn btn-primary' onClick={handleShapeReindeer}>reindeer</button>
+        </>
+    )
 };
 
 export default MapComponent;
