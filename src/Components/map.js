@@ -3,6 +3,8 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import reindeer from './reindeer.json';
 import father_christmas from './Father_Christmas.json'
+import { Button, Input } from 'antd'
+import '../index.css'
 
 // Import your custom marker image
 import customMarkerImage from './pin_blue_50.png';
@@ -171,9 +173,28 @@ const MapComponent = () => {
 
     return (
         <>
+            <div className="flex mt-2 mb-10 justify-between items-center">
+            <h1 className="text-center font-momo text-6xl text-white bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text animate-text"
+                style={{ marginLeft: 750 }}
+                >
+                Running Map
+                </h1>
+                <div className="items-center">
+                    <div className="mr-5 my-5">
+                        <label>ZIP Code</label>
+                        <Input></Input>
+                    </div>
+                    <div>
+                        <Button className=" mr-2.5" onClick={handleShapeChrismtmas} style={{color: '#ffffff', backgroundColor: '#0033cc'}}>
+                            Father_Christmas
+                        </Button>
+                        <Button className="" onClick={handleShapeReindeer} style={{color: '#ffffff', backgroundColor: '#0033cc'}}>
+                            reindeer
+                        </Button>
+                    </div>
+                </div>
+            </div>
             <div id="map" style={{ height: '700px', width: '100%' }}></div>
-            <button className='btn btn-primary' onClick={handleShapeChrismtmas}>Father_Christmas</button>
-            <button className='btn btn-primary' onClick={handleShapeReindeer}>reindeer</button>
         </>
     )
 };

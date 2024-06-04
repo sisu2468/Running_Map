@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans",
@@ -8,4 +12,23 @@ body {
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
+}
+
+@keyframes text-gradient {
+  0% {
+    background-size: 200% 200%;
+    background-position: 0% 50%;
+  }
+  50% {
+    background-size: 200% 200%;
+    background-position: 100% 50%;
+  }
+  100% {
+    background-size: 200% 200%;
+    background-position: 0% 50%;
+  }
+}
+
+.animate-text {
+  animation: text-gradient 10s ease infinite;
 }
