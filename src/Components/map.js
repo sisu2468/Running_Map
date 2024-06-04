@@ -17,7 +17,7 @@ const MapComponent = () => {
 
 
     useEffect(() => {
-        const map = L.map('map').setView([51.48046624769113,  -0.06145477294921875], 14);
+        const map = L.map('map').setView([51.48046624769113,  -0.06145477294921875], 15);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -43,7 +43,6 @@ const MapComponent = () => {
                 const west = bounds.getWest();
                 const north = bounds.getNorth();
                 const east = bounds.getEast();
-                setLeftDown([south, west]);
                 console.log("south", south, west, north, east);
                 return { south, west, north, east };
             };
@@ -58,7 +57,8 @@ const MapComponent = () => {
             const calculateCenterAndRadius = (south, west, north, east) => {
                 const centerLatitude = (south + north) / 2;
                 const centerLongitude = (west + east) / 2;
-                const radius = 1000;
+                const radius = 2000;
+                setLeftDown([centerLatitude-0.01, centerLongitude-0.001]);
                 return { latitude: centerLatitude, longitude: centerLongitude, radius };
             };
 
@@ -145,14 +145,14 @@ const MapComponent = () => {
             markersRef.current = [];
 
             const roaddata = mapshape ==='reindeer' ? reindeer : father_christmas;
-            console.log(leftdown); 
             const road_coordinates = [];
             const closest_points = [];
+            const original_points = [];
 
             roaddata.forEach(road_coord => {
                 // Calculate the current road coordinate
-                const currentRoadCoord = [leftdown[0] + road_coord[0] / 9000, leftdown[1] + road_coord[1] / 2000];
-
+                const currentRoadCoord = [leftdown[0] + road_coord[0] / 40000, leftdown[1] + road_coord[1] / 25000];
+                original_points.push(currentRoadCoord)
                 let minDistance = Infinity;
                 let closestPoint = null;
 
@@ -160,16 +160,15 @@ const MapComponent = () => {
                 buildingData.forEach(element => {
                     if (element.polygon) {
                       element.polygon.forEach(polygondata => {
-                        let distance = Math.sqrt(Math.pow(currentRoadCoord[0] - polygondata[0], 2) + Math.pow(currentRoadCoord[1] - polygondata[1], 2));
-                        if (distance < minDistance && !road_coordinates.includes(polygondata)) {
-                          minDistance = distance;
-                          closestPoint = polygondata;
-                          road_coordinates.push(closestPoint);
+                          let distance = Math.sqrt(Math.pow(currentRoadCoord[0] - polygondata[0], 2) + Math.pow(currentRoadCoord[1] - polygondata[1], 2));
+                          if (distance < minDistance) {
+                            minDistance = distance;
+                            closestPoint = polygondata;
                         }
                       });
                     }
                 });
-                console.log(closestPoint);
+                console.log(road_coordinates.length);
                 // Add the closest point to closest_points
                 if (closestPoint) {
                     closest_points.push(closestPoint);
@@ -182,8 +181,7 @@ const MapComponent = () => {
                 iconAnchor: [16, 16], // Point of the icon which will correspond to marker's location
                 popupAnchor: [0, -16] // Point from which the popup should open relative to the iconAnchor
             });
-            // console.log(buildingData);
-            road_coordinates.forEach(coordPair => {
+            closest_points.forEach(coordPair => {
                 const marker = L.marker(coordPair, { icon: customIcon }).addTo(leafletMap);
                 markersRef.current.push(marker);
             });
