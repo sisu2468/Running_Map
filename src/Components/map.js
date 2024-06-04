@@ -17,7 +17,7 @@ const MapComponent = () => {
 
 
     useEffect(() => {
-        const map = L.map('map').setView([51.48046624769113,  -0.06145477294921875], 13);
+        const map = L.map('map').setView([51.48046624769113,  -0.06145477294921875], 14);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -144,19 +144,37 @@ const MapComponent = () => {
             });
             markersRef.current = [];
 
-            const road_coordinates = [];
             const roaddata = mapshape ==='reindeer' ? reindeer : father_christmas;
             console.log(leftdown); 
+            const road_coordinates = [];
+            const closest_points = [];
+
             roaddata.forEach(road_coord => {
+                // Calculate the current road coordinate
+                const currentRoadCoord = [leftdown[0] + road_coord[0] / 9000, leftdown[1] + road_coord[1] / 2000];
 
-                road_coordinates.push([leftdown[0] + road_coord[0]/9000, leftdown[1] +  road_coord[1]/2000]);
-            
-                // buildingData.forEach(element => {
-                //     element.polygon.forEach(polygondata => {
-                //     });
-                // });
+                let minDistance = Infinity;
+                let closestPoint = null;
+
+                // Find the closest point in buildingData
+                buildingData.forEach(element => {
+                    if (element.polygon) {
+                      element.polygon.forEach(polygondata => {
+                        let distance = Math.sqrt(Math.pow(currentRoadCoord[0] - polygondata[0], 2) + Math.pow(currentRoadCoord[1] - polygondata[1], 2));
+                        if (distance < minDistance && !road_coordinates.includes(polygondata)) {
+                          minDistance = distance;
+                          closestPoint = polygondata;
+                          road_coordinates.push(closestPoint);
+                        }
+                      });
+                    }
+                });
+                console.log(closestPoint);
+                // Add the closest point to closest_points
+                if (closestPoint) {
+                    closest_points.push(closestPoint);
+                }
             });
-
             // Define the custom icon
             const customIcon = L.icon({
                 iconUrl: customMarkerImage,
@@ -164,6 +182,7 @@ const MapComponent = () => {
                 iconAnchor: [16, 16], // Point of the icon which will correspond to marker's location
                 popupAnchor: [0, -16] // Point from which the popup should open relative to the iconAnchor
             });
+            // console.log(buildingData);
             road_coordinates.forEach(coordPair => {
                 const marker = L.marker(coordPair, { icon: customIcon }).addTo(leafletMap);
                 markersRef.current.push(marker);
@@ -174,7 +193,7 @@ const MapComponent = () => {
     return (
         <>
             <div className="flex mt-2 mb-10 justify-between items-center">
-            <h1 className="text-center font-momo text-6xl text-white bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text animate-text"
+            <h1 className="text-center font-momo text-6xl bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text animate-text"
                 style={{ marginLeft: 750 }}
                 >
                 Running Map
