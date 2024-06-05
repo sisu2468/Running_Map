@@ -17,7 +17,7 @@ const MapComponent = () => {
 
 
     useEffect(() => {
-        const map = L.map('map').setView([51.48046624769113,  -0.06145477294921875], 15);
+        const map = L.map('map').setView([51.47046624769113,  -0.06145477294921875], 15);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -132,8 +132,8 @@ const MapComponent = () => {
 
             calc_building();
 
-            leafletMap.on('zoomend', calc_building);
-            leafletMap.on('moveend', calc_building);
+            // leafletMap.on('zoomend', calc_building);
+            // leafletMap.on('moveend', calc_building);
         }
     }, [leafletMap]);
 
