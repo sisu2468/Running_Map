@@ -14,8 +14,9 @@ const MapComponent = () => {
     const [buildingData, setBuildingData] = useState([]);
     const [mapShape, setMapShape] = useState('reindeer');
     const [zipCode, setZipCode] = useState('');
-    const markersRef = useRef([]);
     const [centralcoord, setCentralCoord] = useState([51.47046624769113, -0.06145477294921875]);
+    const markersRef = useRef([]);
+    const polylineRef = useRef(null);
 
     useEffect(() => {
         const map = L.map('map').setView(centralcoord, 15);
@@ -28,7 +29,6 @@ const MapComponent = () => {
     }, []);
 
     const handleShapeChrismtmas = () => {
-        console.log("father");
         setMapShape('father_christmas');
     };
 
@@ -46,7 +46,6 @@ const MapComponent = () => {
                 const west = bounds.getWest();
                 const north = bounds.getNorth();
                 const east = bounds.getEast();
-                console.log("south", south, west, north, east);
                 return { south, west, north, east };
             };
 
@@ -128,6 +127,35 @@ const MapComponent = () => {
         }
     }, [leafletMap, centralcoord]);
 
+    const findNearestNeighbor = (points, startPoint) => {
+        const sortedPoints = [startPoint];
+        const remainingPoints = [...points];
+        remainingPoints.splice(remainingPoints.indexOf(startPoint), 1);
+
+        while (remainingPoints.length) {
+            const lastPoint = sortedPoints[sortedPoints.length - 1];
+            let nearestIndex = 0;
+            let nearestDistance = Infinity;
+
+            for (let i = 0; i < remainingPoints.length; i++) {
+                const distance = Math.sqrt(
+                    Math.pow(lastPoint[0] - remainingPoints[i][0], 2) +
+                    Math.pow(lastPoint[1] - remainingPoints[i][1], 2)
+                );
+
+                if (distance < nearestDistance) {
+                    nearestDistance = distance;
+                    nearestIndex = i;
+                }
+            }
+
+            sortedPoints.push(remainingPoints[nearestIndex]);
+            remainingPoints.splice(nearestIndex, 1);
+        }
+
+        return sortedPoints;
+    };
+
     useEffect(() => {
         if (leafletMap && buildingData.length > 0) {
             markersRef.current.forEach(marker => {
@@ -174,10 +202,20 @@ const MapComponent = () => {
                 popupAnchor: [0, -16] // Point from which the popup should open relative to the iconAnchor
             });
 
-            closest_points.forEach(coordPair => {
-                const marker = L.marker(coordPair, { icon: customIcon }).addTo(leafletMap);
-                markersRef.current.push(marker);
-            });
+            // closest_points.forEach(coordPair => {
+            //     const marker = L.marker(coordPair, { icon: customIcon }).addTo(leafletMap);
+            //     markersRef.current.push(marker);
+            // });
+
+            // Sort the closest points using the nearest neighbor approach
+            const sortedPoints = findNearestNeighbor(closest_points, closest_points[0]);
+
+            // Draw polyline between the sorted points
+            if (polylineRef.current) {
+                leafletMap.removeLayer(polylineRef.current);
+            }
+
+            polylineRef.current = L.polyline(sortedPoints, { color: 'blue' }).addTo(leafletMap);
         }
     }, [leafletMap, buildingData, mapShape, centralcoord]);
 
