@@ -245,9 +245,7 @@ const MapComponent = () => {
             <div className="flex mt-2 mb-10 justify-between items-center">
                 <h1 className="text-center font-momo text-6xl bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text animate-text"
                     style={{ marginLeft: 750 }}
-                >
-                    Running Map
-                </h1>
+                >Running Map</h1>
                 <div className="items-center">
                     <div className="mr-5 my-5">
                         <label>ZIP Code</label>
