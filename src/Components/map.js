@@ -131,6 +131,7 @@ const MapComponent = () => {
         const sortedPoints = [startPoint];
         const remainingPoints = [...points];
         remainingPoints.splice(remainingPoints.indexOf(startPoint), 1);
+        let maxdistance = 0.0;
 
         while (remainingPoints.length) {
             const lastPoint = sortedPoints[sortedPoints.length - 1];
@@ -147,11 +148,16 @@ const MapComponent = () => {
                     nearestDistance = distance;
                     nearestIndex = i;
                 }
+                if(maxdistance < distance) {
+                    maxdistance = distance;
+                }
             }
+            // let over_value = sortedPoints[sortedPoints.length - 1];
 
             sortedPoints.push(remainingPoints[nearestIndex]);
             remainingPoints.splice(nearestIndex, 1);
         }
+        sortedPoints.push(startPoint)
 
         return sortedPoints;
     };
@@ -164,7 +170,7 @@ const MapComponent = () => {
             markersRef.current = [];
 
             const roaddata = mapShape === 'reindeer' ? reindeer : father_christmas;
-            const road_coordinates = [];
+            const linepoints = [];
             const closest_points = [];
             const original_points = [];
 
@@ -174,7 +180,7 @@ const MapComponent = () => {
                 original_points.push(currentRoadCoord);
                 let minDistance = Infinity;
                 let closestPoint = null;
-
+                let linepoint = null;
                 // Find the closest point in buildingData
                 buildingData.forEach(element => {
                     if (element.polygon) {
@@ -183,6 +189,7 @@ const MapComponent = () => {
                           if (distance < minDistance) {
                               minDistance = distance;
                               closestPoint = polygondata;
+                              linepoint = [ element.polygon[0], polygondata]
                           }
                       });
                     }
@@ -192,8 +199,12 @@ const MapComponent = () => {
                 if (closestPoint) {
                     closest_points.push(closestPoint);
                 }
-            });
 
+                if (linepoint[0]) {
+                    linepoints.push(linepoint[0])
+                    linepoints.push(linepoint[1])
+                }
+            });
             // Define the custom icon
             const customIcon = L.icon({
                 iconUrl: customMarkerImage,
@@ -208,14 +219,30 @@ const MapComponent = () => {
             // });
 
             // Sort the closest points using the nearest neighbor approach
-            const sortedPoints = findNearestNeighbor(closest_points, closest_points[0]);
-
+            let sortedPoints = [];
+            if (mapShape === 'father_christmas'){
+                sortedPoints = findNearestNeighbor(closest_points, closest_points[0]);
+                console.log('father_christmas');
+            }
+            closest_points.push(closest_points[0]);
             // Draw polyline between the sorted points
             if (polylineRef.current) {
                 leafletMap.removeLayer(polylineRef.current);
             }
+            if (mapShape === 'father_christmas'){
+                const maxDistance = 20;
+                const filteredPoints = sortedPoints.filter((point, index, array) => {
+                    if (index === 0) return true; // Always keep the first point
+                    const previousPoint = array[index - 1];
+                    const distance = L.latLng(point).distanceTo(previousPoint);
+                    return distance * 6371 <= maxDistance;
+                });
 
-            polylineRef.current = L.polyline(sortedPoints, { color: 'blue' }).addTo(leafletMap);
+                polylineRef.current = L.polyline(filteredPoints, { color: 'blue' }).addTo(leafletMap);
+            }
+            else {
+                polylineRef.current = L.polyline(closest_points, { color: 'blue' }).addTo(leafletMap);
+            }
         }
     }, [leafletMap, buildingData, mapShape, centralcoord]);
 
