@@ -14,7 +14,7 @@ const MapComponent = () => {
     const [buildingData, setBuildingData] = useState([]);
     const [mapShape, setMapShape] = useState('reindeer');
     const [zipCode, setZipCode] = useState('');
-    const [centralcoord, setCentralCoord] = useState([51.47046624769113, -0.06145477294921875]);
+    const [centralcoord, setCentralCoord] = useState([51.479156, -0.082581]);
     const markersRef = useRef([]);
     const polylineRef = useRef(null);
 
@@ -241,7 +241,17 @@ const MapComponent = () => {
                 polylineRef.current = L.polyline(filteredPoints, { color: 'blue' }).addTo(leafletMap);
             }
             else {
-                polylineRef.current = L.polyline(closest_points, { color: 'blue' }).addTo(leafletMap);
+                const maxDistance = 10;
+                const filteredPoints = closest_points.filter((point, index, array) => {
+                    if (index === 0) return true; // Always keep the first point
+                    const previousPoint = array[index - 1];
+                    const distance = L.latLng(point).distanceTo(previousPoint);
+                    return distance * 6371 <= maxDistance;
+                });
+
+                polylineRef.current = L.polyline(filteredPoints, { color: 'blue' }).addTo(leafletMap);
+
+                // polylineRef.current = L.polyline(closest_points, { color: 'blue' }).addTo(leafletMap);
             }
         }
     }, [leafletMap, buildingData, mapShape, centralcoord]);
