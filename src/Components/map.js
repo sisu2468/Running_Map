@@ -113,11 +113,11 @@ const MapComponent = () => {
                     method: 'POST',
                     body: query
                 })
-                    .then(response => response.json())
-                    .then(data => {
-                        setBuildingData(extractBuildingInfo(data));
-                    })
-                    .catch(error => console.error('Error fetching building data:', error));
+                .then(response => response.json())
+                .then(data => {
+                    setBuildingData(extractBuildingInfo(data));
+                })
+                .catch(error => console.error('Error fetching building data:', error));
             }
 
             calc_building();

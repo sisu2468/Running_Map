@@ -9,7 +9,7 @@ const MapComponent = () => {
 
     useEffect(() => {
         // Create Leaflet map
-        const map = L.map('map').setView([41.233731, -80.92304], 15);
+        const map = L.map('map').setView([41.233731, -80.92304], 17);
 
         // Add tile layer to the map
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -20,7 +20,6 @@ const MapComponent = () => {
         setLeafletMap(map);
     }, []);
 
-    const south = '', east= '', west = '', north = '', area = ''
     useEffect(() => {
         if (leafletMap) {
             const updateBounds = () => {
