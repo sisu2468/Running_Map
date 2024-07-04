@@ -180,24 +180,31 @@ const MapComponent = () => {
                 original_points.push(currentRoadCoord);
                 let minDistance = Infinity;
                 let closestPoint = null;
+                let twopoints = []
                 let linepoint = null;
                 // Find the closest point in buildingData
                 buildingData.forEach(element => {
                     if (element.polygon) {
-                      element.polygon.forEach(polygondata => {
-                          let distance = Math.sqrt(Math.pow(currentRoadCoord[0] - polygondata[0], 2) + Math.pow(currentRoadCoord[1] - polygondata[1], 2));
-                          if (distance < minDistance) {
-                              minDistance = distance;
-                              closestPoint = polygondata;
-                              linepoint = [ element.polygon[0], polygondata]
-                          }
-                      });
+                        let firstPoint = element.polygon[0];
+                        let lastPoint = element.polygon[element.polygon.length - 1];
+                        
+                        let pointsToCheck = [firstPoint, lastPoint];
+                        
+                        pointsToCheck.forEach(polygondata => {
+                            let distance = Math.sqrt(Math.pow(currentRoadCoord[0] - polygondata[0], 2) + Math.pow(currentRoadCoord[1] - polygondata[1], 2));
+                            if (distance < minDistance) {
+                                minDistance = distance;
+                                closestPoint = polygondata;
+                                twopoints = element.polygon;
+                                linepoint = [element.polygon[0], polygondata];
+                            }
+                        });
                     }
                 });
-
                 // Add the closest point to closest_points
                 if (closestPoint) {
                     closest_points.push(closestPoint);
+                    polylineRef.current = L.polyline(twopoints, { color: 'red' }).addTo(leafletMap);
                 }
 
                 if (linepoint[0]) {
@@ -238,7 +245,7 @@ const MapComponent = () => {
                     return distance * 6371 <= maxDistance;
                 });
 
-                polylineRef.current = L.polyline(filteredPoints, { color: 'blue' }).addTo(leafletMap);
+                // polylineRef.current = L.polyline(filteredPoints, { color: 'blue' }).addTo(leafletMap);
             }
             else {
                 const maxDistance = 10;
@@ -249,7 +256,7 @@ const MapComponent = () => {
                     return distance * 6371 <= maxDistance;
                 });
 
-                polylineRef.current = L.polyline(filteredPoints, { color: 'blue' }).addTo(leafletMap);
+                // polylineRef.current = L.polyline(filteredPoints, { color: 'blue' }).addTo(leafletMap);
 
                 // polylineRef.current = L.polyline(closest_points, { color: 'blue' }).addTo(leafletMap);
             }
