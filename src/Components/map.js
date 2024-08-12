@@ -127,6 +127,133 @@ const MapComponent = () => {
         }
     }, [leafletMap, centralcoord]);
 
+    class Graph {
+        constructor() {
+            this.nodes = new Map();
+        }
+        
+        addNode(coordinate) {
+            this.nodes.set(coordinate.toString(), []);
+        }
+        
+        addEdge(start, end) {
+            this.nodes.get(start.toString()).push(end);
+            this.nodes.get(end.toString()).push(start); // Assuming bidirectional roads
+        }
+        
+        getNeighbors(coordinate) {
+            return this.nodes.get(coordinate.toString());
+        }
+    }
+      
+    const haversineDistance = (coord1, coord2) => {
+        const toRad = (value) => (value * Math.PI) / 180;
+        
+        const [lat1, lon1] = coord1;
+        const [lat2, lon2] = coord2;
+      
+        const R = 6371; // Earth radius in km
+        const dLat = toRad(lat2 - lat1);
+        const dLon = toRad(lon2 - lon1);
+        const a = 
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+          Math.sin(dLon / 2) * Math.sin(dLon / 2); 
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); 
+        return R * c;
+    };
+      
+    const coordToString = (coord) => `${coord[0]},${coord[1]}`;
+    const stringToCoord = (str) => str.split(',').map(Number);
+      
+    const dijkstra = (graph, start, end) => {
+        const startStr = coordToString(start);
+        const endStr = coordToString(end);
+      
+        const distances = new Map();
+        const previous = new Map();
+        const queue = new PriorityQueue();
+      
+        distances.set(startStr, 0);
+        queue.enqueue(startStr, 0);
+      
+        graph.nodes.forEach((_, node) => {
+          if (node !== startStr) {
+            distances.set(node, Infinity);
+          }
+          previous.set(node, null);
+        });
+      
+        while (!queue.isEmpty()) {
+          const smallest = queue.dequeue();
+      
+          if (smallest === endStr) {
+            const path = [];
+            let currentNode = endStr;
+            while (currentNode) {
+              path.unshift(stringToCoord(currentNode));
+              currentNode = previous.get(currentNode);
+            }
+            return path;
+          }
+      
+          graph.getNeighbors(stringToCoord(smallest)).forEach(neighbor => {
+            const neighborStr = coordToString(neighbor);
+            const alt = distances.get(smallest) + haversineDistance(stringToCoord(smallest), neighbor);
+            if (alt < distances.get(neighborStr)) {
+              distances.set(neighborStr, alt);
+              previous.set(neighborStr, smallest);
+              queue.enqueue(neighborStr, alt);
+            }
+          });
+        }
+      
+        return [];
+    };
+      
+    class PriorityQueue {
+        constructor() {
+          this.values = [];
+        }
+      
+        enqueue(val, priority) {
+          this.values.push({ val, priority });
+          this.sort();
+        }
+      
+        dequeue() {
+          return this.values.shift().val;
+        }
+      
+        isEmpty() {
+          return this.values.length === 0;
+        }
+      
+        sort() {
+          this.values.sort((a, b) => a.priority - b.priority);
+        }
+    }
+      
+      // Graph creation function remains the same
+      
+    const createGraph = (buildingData) => {
+        const graph = new Graph();
+        
+        buildingData.forEach(road => {
+          const points = road.polygon;
+          points.forEach((point, index) => {
+            graph.addNode(point);
+            if (index > 0) {
+              graph.addEdge(points[index - 1], point);
+            }
+          });
+        });
+      
+        return graph;
+    };
+    
+    const graph = createGraph(buildingData);
+      
     const findNearestNeighbor = (points, startPoint) => {
         const sortedPoints = [startPoint];
         const remainingPoints = [...points];
@@ -173,6 +300,9 @@ const MapComponent = () => {
             const linepoints = [];
             const closest_points = [];
             const original_points = [];
+            const check_point = {};
+            let buildingpoints = []
+
 
             roaddata.forEach(road_coord => {
                 // Calculate the current road coordinate
@@ -183,48 +313,50 @@ const MapComponent = () => {
                 let twopoints = []
                 let linepoint = null;
                 // Find the closest point in buildingData
+                let iii = 1;
                 buildingData.forEach(element => {
                     if (element.polygon) {
+                        buildingpoints.push(element.polygon);
+                        if(iii > 1000){
+                            return;
+                        }
+                        iii += 1;
                         let firstPoint = element.polygon[0];
                         let lastPoint = element.polygon[element.polygon.length - 1];
                         
                         let pointsToCheck = [firstPoint, lastPoint];
                         
-                        pointsToCheck.forEach(polygondata => {
-                            let distance = Math.sqrt(Math.pow(currentRoadCoord[0] - polygondata[0], 2) + Math.pow(currentRoadCoord[1] - polygondata[1], 2));
-                            if (distance < minDistance) {
-                                minDistance = distance;
-                                closestPoint = polygondata;
-                                twopoints = element.polygon;
-                                linepoint = [element.polygon[0], polygondata];
-                            }
-                        });
+                        // element.polygon.forEach(polygondata => {
+                        //     let distance = Math.sqrt(Math.pow(currentRoadCoord[0] - polygondata[0], 2) + Math.pow(currentRoadCoord[1] - polygondata[1], 2));
+                        //     if (distance < minDistance) {
+                        //         minDistance = distance;
+                        //         closestPoint = polygondata;
+                        //         linepoint = [element.polygon[0], polygondata];
+                        //     }
+                        // });
+                        // pointsToCheck.forEach(polygondata => {
+                        //     let distance = Math.sqrt(Math.pow(currentRoadCoord[0] - polygondata[0], 2) + Math.pow(currentRoadCoord[1] - polygondata[1], 2));
+                        //     if (distance < minDistance) {
+                        //         twopoints = element.polygon;
+                        //     }
+                        // });
                     }
                 });
+                const pointKey = JSON.stringify(closestPoint);
+                linepoints.push(twopoints);
+
                 // Add the closest point to closest_points
-                if (closestPoint) {
+                if (closestPoint && !check_point[pointKey]) {
                     closest_points.push(closestPoint);
-                    polylineRef.current = L.polyline(twopoints, { color: 'red' }).addTo(leafletMap);
-                }
-
-                if (linepoint[0]) {
-                    linepoints.push(linepoint[0])
-                    linepoints.push(linepoint[1])
+                    check_point[pointKey] = true; // Mark the point as checked
+                    // polylineRef.current = L.polyline(twopoints, { color: 'red' }).addTo(leafletMap);
                 }
             });
-            // Define the custom icon
-            const customIcon = L.icon({
-                iconUrl: customMarkerImage,
-                iconSize: [16, 16], // Adjust the size to your needs
-                iconAnchor: [16, 16], // Point of the icon which will correspond to marker's location
-                popupAnchor: [0, -16] // Point from which the popup should open relative to the iconAnchor
-            });
-
             // closest_points.forEach(coordPair => {
             //     const marker = L.marker(coordPair, { icon: customIcon }).addTo(leafletMap);
             //     markersRef.current.push(marker);
             // });
-
+            // console.log("closest_points", buildingData);
             // Sort the closest points using the nearest neighbor approach
             let sortedPoints = [];
             if (mapShape === 'father_christmas'){
@@ -236,29 +368,211 @@ const MapComponent = () => {
             if (polylineRef.current) {
                 leafletMap.removeLayer(polylineRef.current);
             }
+
+            const findConnections = (closest_points, graph) => {
+                const connections = [];
+              
+                for (let i = 0; i < closest_points.length - 1; i++) {
+                    let ii = 1;
+                    while (i + ii < closest_points.length){
+                        const start = closest_points[i];
+                        const end = closest_points[i + ii];
+                        const path = dijkstra(graph, start, end);
+                        connections.push(path);
+                        ii += 1;
+                    }
+                //   start = closest_points[i][closest_points[i].length - 1];
+                //   end = closest_points[i + 1][closest_points[i + 1].length - 1];
+                //   path = dijkstra(graph, start, end);
+                //   connections.push(path);
+
+                //   start = closest_points[i][0];
+                //   end = closest_points[i + 1][0];
+                //   path = dijkstra(graph, start, end);
+                //   connections.push(path);
+
+                //   start = closest_points[i][0];
+                //   end = closest_points[i + 1][closest_points[i + 1].length - 1];
+                //   path = dijkstra(graph, start, end);
+                //   connections.push(path);
+                }
+              
+                return connections;
+            };
+
+            // Sort function to sort by latitude first, then by longitude
+            const sortClosestPoints = (a, b) => {
+                if (a[0][0] === b[0][0]) {
+                    return a[0][1] - b[0][1];
+                }
+                return a[0][0] - b[0][0];
+            };
+            console.log("close", closest_points);
+            // Sorting the closest_points array
+            // closest_points.sort(sortClosestPoints);
+
+            const sample_road = [
+                [
+                    [
+                        51.4760821,
+                        -0.0698844
+                    ],
+                    [
+                        51.4760302,
+                        -0.0698521
+                    ],
+                    [
+                        51.4759842,
+                        -0.0698314
+                    ],
+                    [
+                        51.4755551,
+                        -0.0696858
+                    ],
+                    [
+                        51.475346,
+                        -0.0695938
+                    ],
+                    [
+                        51.4753358,
+                        -0.0696731
+                    ]
+                ],
+                [
+                    [
+                        51.4874989,
+                        -0.0755241
+                    ],
+                    [
+                        51.4874626,
+                        -0.075576
+                    ],
+                    [
+                        51.4873196,
+                        -0.0757805
+                    ],
+                    [
+                        51.48701,
+                        -0.0762234
+                    ],
+                    [
+                        51.4863591,
+                        -0.0763281
+                    ],
+                    [
+                        51.4861418,
+                        -0.076363
+                    ],
+                    [
+                        51.4857598,
+                        -0.0764143
+                    ],
+                    [
+                        51.485583,
+                        -0.076438
+                    ],
+                    [
+                        51.4853827,
+                        -0.0764949
+                    ],
+                    [
+                        51.4850407,
+                        -0.0765672
+                    ],
+                    [
+                        51.4849548,
+                        -0.0765794
+                    ],
+                    [
+                        51.4848619,
+                        -0.0766059
+                    ],
+                    [
+                        51.4845406,
+                        -0.0766933
+                    ],
+                    [
+                        51.4842602,
+                        -0.0767695
+                    ],
+                    [
+                        51.484186,
+                        -0.0767912
+                    ],
+                    [
+                        51.4840389,
+                        -0.0768173
+                    ],
+                    [
+                        51.4835074,
+                        -0.0769116
+                    ],
+                    [
+                        51.4831792,
+                        -0.0769698
+                    ]
+                ]
+            ]
+
+            const dis_road = [
+                [],
+                [],
+                [
+                    [
+                        51.4831503,
+                        -0.0770746
+                    ],
+                    [
+                        51.4831647,
+                        -0.0770522
+                    ],
+                    [
+                        51.4831792,
+                        -0.0769698
+                    ]
+                ]
+            ]
+            // Define the custom icon
+            const customIcon = L.icon({
+                iconUrl: customMarkerImage,
+                iconSize: [16, 16], // Adjust the size to your needs
+                iconAnchor: [16, 16], // Point of the icon which will correspond to marker's location
+                popupAnchor: [0, -16] // Point from which the popup should open relative to the iconAnchor
+            });
+
+            // const connections = findConnections(closest_points, graph);
+            // console.log(connections);
+            // polylineRef.current = L.polyline(connections, { color: 'blue' }).addTo(leafletMap);
+            // polylineRef.current = L.polyline(sample_road, { color: 'red' }).addTo(leafletMap);
+            // closest_points.forEach(coordPair => {
+            //     const marker = L.marker(coordPair, { icon: customIcon }).addTo(leafletMap);
+            //     markersRef.current.push(marker);
+            // });
+
             if (mapShape === 'father_christmas'){
                 const maxDistance = 20;
-                const filteredPoints = sortedPoints.filter((point, index, array) => {
-                    if (index === 0) return true; // Always keep the first point
-                    const previousPoint = array[index - 1];
-                    const distance = L.latLng(point).distanceTo(previousPoint);
-                    return distance * 6371 <= maxDistance;
-                });
+                // const filteredPoints = sortedPoints.filter((point, index, array) => {
+                //     if (index === 0) return true; // Always keep the first point
+                //     const previousPoint = array[index - 1];
+                //     const distance = L.latLng(point).distanceTo(previousPoint);
+                //     return distance * 6371 <= maxDistance;
+                // });
 
                 // polylineRef.current = L.polyline(filteredPoints, { color: 'blue' }).addTo(leafletMap);
             }
             else {
                 const maxDistance = 10;
-                const filteredPoints = closest_points.filter((point, index, array) => {
-                    if (index === 0) return true; // Always keep the first point
-                    const previousPoint = array[index - 1];
-                    const distance = L.latLng(point).distanceTo(previousPoint);
-                    return distance * 6371 <= maxDistance;
-                });
+                // const filteredPoints = closest_points.filter((point, index, array) => {
+                //     if (index === 0) return true; // Always keep the first point
+                //     const previousPoint = array[index - 1];
+                //     const distance = L.latLng(point).distanceTo(previousPoint);
+                //     return distance * 6371 <= maxDistance;
+                // });
 
                 // polylineRef.current = L.polyline(filteredPoints, { color: 'blue' }).addTo(leafletMap);
 
-                // polylineRef.current = L.polyline(closest_points, { color: 'blue' }).addTo(leafletMap);
+                // polylineRef.current = L.polyline(connections, { color: 'red' }).addTo(leafletMap);
+                polylineRef.current = L.polyline(buildingpoints, { color: 'red' }).addTo(leafletMap);
             }
         }
     }, [leafletMap, buildingData, mapShape, centralcoord]);
